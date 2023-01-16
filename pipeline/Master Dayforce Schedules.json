@@ -1,0 +1,104 @@
+{
+	"name": "Master Dayforce Schedules",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute Pipeline Dayforce Schedules",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "Dayforce Schedules",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "OnSuccess Teams Notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline Dayforce Schedules",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "NotifyTeamsChannelPipeline",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+						"resourceGroup": "csvinjest",
+						"runId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"name": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"triggerTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"message": "Master Dayforce Schedules Pipeline Run Successful",
+						"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+					}
+				}
+			},
+			{
+				"name": "OnFail Teams Notification",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline Dayforce Schedules",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "NotifyTeamsChannelPipeline",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+						"resourceGroup": "csvinjest",
+						"runId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"name": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"triggerTime": {
+							"value": "@pipeline().TriggerTime",
+							"type": "Expression"
+						},
+						"message": {
+							"value": "@{activity('Execute Pipeline Dayforce Schedules').error.message}",
+							"type": "Expression"
+						},
+						"executionEndTime": "execution end time",
+						"runDuration": "duration",
+						"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-12-01T20:51:26Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,115 @@
+{
+	"name": "DataFlowEmployees",
+	"properties": {
+		"description": "Staging to Employees",
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlDayforceEmployee",
+						"type": "DatasetReference"
+					},
+					"name": "SourceStagingDayforceEmployees"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlTableSinkEmployees",
+						"type": "DatasetReference"
+					},
+					"name": "SinkEmployees"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AlterRowEmployeesUpsert"
+				},
+				{
+					"name": "DerivedColumnNullDataFix"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          employee_identifier as integer,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          status as string,",
+				"          termination_date as string,",
+				"          status_reason_name as string,",
+				"          original_hire_date as string,",
+				"          base_rate as string,",
+				"          pay_group_name as string,",
+				"          pay_type_name as string,",
+				"          pay_class_name as string,",
+				"          department_name as string,",
+				"          job_name as string,",
+				"          location_name as string,",
+				"          employee_birth_date as string,",
+				"          created_by as string,",
+				"          created_at as timestamp,",
+				"          updated_at as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'select * from csv_import_raw.staging_dayforce_employees where concat(employee_identifier,status) not in (select concat(employee_identifier,status) from csv_import_raw.staging_dayforce_employees where employee_identifier in (select employee_identifier from csv_import_raw.staging_dayforce_employees group by employee_identifier having count(employee_identifier) > 1) and status=\\'Active\\')',",
+				"     format: 'query') ~> SourceStagingDayforceEmployees",
+				"DerivedColumnNullDataFix alterRow(upsertIf(!isNull(employee_identifier))) ~> AlterRowEmployeesUpsert",
+				"SourceStagingDayforceEmployees derive(employee_birth_date = toDate(employee_birth_date,'MM/dd/yyyy'),",
+				"          original_hire_date = toDate(original_hire_date,'MM/dd/yyyy'),",
+				"          termination_date = toDate(termination_date,'MM/dd/yyyy'),",
+				"          base_rate = toDecimal(base_rate,12,3,'#.###')) ~> DerivedColumnNullDataFix",
+				"AlterRowEmployeesUpsert sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          dayforce_id as integer,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          status as string,",
+				"          termination_date as date,",
+				"          status_reason as string,",
+				"          hire_date as date,",
+				"          base_rate as decimal(0,0),",
+				"          pay_group as string,",
+				"          pay_type as string,",
+				"          pay_class as string,",
+				"          department_name as string,",
+				"          job_name as string,",
+				"          home_organization_shortname as string,",
+				"          birth_date as date,",
+				"          created_by as string,",
+				"          created_at as timestamp,",
+				"          updated_at as timestamp",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:false,",
+				"     updateable:false,",
+				"     upsertable:true,",
+				"     keys:['dayforce_id'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          dayforce_id = employee_identifier,",
+				"          first_name,",
+				"          last_name,",
+				"          status,",
+				"          termination_date,",
+				"          status_reason = status_reason_name,",
+				"          hire_date = original_hire_date,",
+				"          base_rate,",
+				"          pay_group = pay_group_name,",
+				"          pay_type = pay_type_name,",
+				"          pay_class = pay_class_name,",
+				"          department_name,",
+				"          job_name,",
+				"          home_organization_shortname = location_name,",
+				"          birth_date = employee_birth_date,",
+				"          created_by",
+				"     )) ~> SinkEmployees"
+			]
+		}
+	}
+}

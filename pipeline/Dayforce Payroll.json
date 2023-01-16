@@ -1,0 +1,522 @@
+{
+	"name": "Dayforce Payroll",
+	"properties": {
+		"activities": [
+			{
+				"name": "Dayforce Payroll Meta Upload",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "dayforce_payroll_meta_file",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "ForEach Upload Folder",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Dayforce Payroll Meta Upload",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Dayforce Payroll Meta Upload').output.childItems",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy Dayforce Payroll PostgreSQL",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "AzurePostgreSQLSink",
+									"writeBatchSize": 1000000,
+									"writeBatchTimeout": "00:30:00",
+									"preCopyScript": "truncate table csv_import_raw.staging_dayforce_payroll",
+									"writeMethod": "CopyCommand"
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "Register by Pay Run Pay Period Name"
+											},
+											"sink": {
+												"name": "register_by_pay_run_pay_period_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Register by Pay Run Pay Period Start Date"
+											},
+											"sink": {
+												"name": "register_by_pay_run_pay_period_start_date"
+											}
+										},
+										{
+											"source": {
+												"name": "Register by Pay Run Pay Period End Date"
+											},
+											"sink": {
+												"name": "register_by_pay_run_pay_period_end_date"
+											}
+										},
+										{
+											"source": {
+												"name": "Register by Pay Run Check Date"
+											},
+											"sink": {
+												"name": "register_by_pay_run_check_date"
+											}
+										},
+										{
+											"source": {
+												"name": "Register by Pay Run Employee Number"
+											},
+											"sink": {
+												"name": "register_by_pay_run_employee_number"
+											}
+										},
+										{
+											"source": {
+												"name": "Check Type"
+											},
+											"sink": {
+												"name": "check_type"
+											}
+										},
+										{
+											"source": {
+												"name": "Employee"
+											},
+											"sink": {
+												"name": "employee"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Type Description"
+											},
+											"sink": {
+												"name": "pay_type_description"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Class Description"
+											},
+											"sink": {
+												"name": "pay_class_description"
+											}
+										},
+										{
+											"source": {
+												"name": "Employment Status Description"
+											},
+											"sink": {
+												"name": "employment_status_description"
+											}
+										},
+										{
+											"source": {
+												"name": "Job Name"
+											},
+											"sink": {
+												"name": "job_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Department Description"
+											},
+											"sink": {
+												"name": "department_description"
+											}
+										},
+										{
+											"source": {
+												"name": "Location"
+											},
+											"sink": {
+												"name": "location"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Type"
+											},
+											"sink": {
+												"name": "pay_type"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Code"
+											},
+											"sink": {
+												"name": "pay_code"
+											}
+										},
+										{
+											"source": {
+												"name": "Hours"
+											},
+											"sink": {
+												"name": "hours"
+											}
+										},
+										{
+											"source": {
+												"name": "Rate"
+											},
+											"sink": {
+												"name": "rate"
+											}
+										},
+										{
+											"source": {
+												"name": "Amount"
+											},
+											"sink": {
+												"name": "amount"
+											}
+										},
+										{
+											"source": {
+												"name": "YTD Hours"
+											},
+											"sink": {
+												"name": "ytd_hours"
+											}
+										},
+										{
+											"source": {
+												"name": "YTD Amount"
+											},
+											"sink": {
+												"name": "ytd_amount"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_payroll_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "AzurePostgreSqlDayforcePayroll",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Copy To Success Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Execute Pipeline Insert Payroll",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_payroll_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_payroll_success_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete From Upload Folder On Success",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy To Success Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_payroll_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Copy To Fail Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Payroll PostgreSQL",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_payroll_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_payroll_fail_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete From Upload Folder On Fail",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy To Fail Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_payroll_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Execute Pipeline Insert Payroll",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Payroll PostgreSQL",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Insert Into Payroll",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-11-29T13:32:59Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

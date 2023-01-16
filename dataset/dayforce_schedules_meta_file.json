@@ -1,0 +1,23 @@
+{
+	"name": "dayforce_schedules_meta_file",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorageLS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": "upload",
+				"container": "dayforce-schedules"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

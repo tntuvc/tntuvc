@@ -1,0 +1,150 @@
+{
+	"name": "AzurePostgreSqlTableSinkPayroll",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzurePostgreSqlDynamic",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzurePostgreSqlTable",
+		"schema": [
+			{
+				"name": "id",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_pay_period_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_pay_period_start_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_pay_period_end_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "check_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "check_type",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "dayforce_id",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_type_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_class_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "employee_status",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "job_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "department",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "location_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_type",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_code",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "hours",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "rate",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "amount",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "ytd_hours",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "ytd_amount",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_by",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_at",
+				"type": "timestamp without time zone",
+				"precision": 0,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "csv_import_raw",
+			"table": "payroll"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

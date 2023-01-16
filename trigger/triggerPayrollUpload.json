@@ -1,0 +1,24 @@
+{
+	"name": "triggerPayrollUpload",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "Master Dayforce Payroll",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/dayforce-payroll/blobs/upload/",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}

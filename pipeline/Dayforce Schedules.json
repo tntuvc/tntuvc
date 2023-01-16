@@ -1,0 +1,491 @@
+{
+	"name": "Dayforce Schedules",
+	"properties": {
+		"activities": [
+			{
+				"name": "Dayforce Schedules Meta",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "dayforce_schedules_meta_file",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "ForEach Upload Folder",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Dayforce Schedules Meta",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Dayforce Schedules Meta').output.childItems",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy Dayforce Schedules",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "AzurePostgreSQLSink",
+									"writeBatchSize": 1000000,
+									"writeBatchTimeout": "00:30:00",
+									"preCopyScript": "truncate table csv_import_raw.staging_dayforce_schedules",
+									"writeMethod": "CopyCommand"
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "Dayforce Id"
+											},
+											"sink": {
+												"name": "dayforce_id",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Location Name"
+											},
+											"sink": {
+												"name": "location_name",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Employee"
+											},
+											"sink": {
+												"name": "employee",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Business Date"
+											},
+											"sink": {
+												"name": "business_date",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Schedule Start"
+											},
+											"sink": {
+												"name": "schedule_start",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Schedule End"
+											},
+											"sink": {
+												"name": "schedule_end",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Scheduled Hours"
+											},
+											"sink": {
+												"name": "scheduled_hours",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "In Punch"
+											},
+											"sink": {
+												"name": "in_punch",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Out Punch"
+											},
+											"sink": {
+												"name": "out_punch",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Worked Hours"
+											},
+											"sink": {
+												"name": "worked_hours",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Difference"
+											},
+											"sink": {
+												"name": "difference",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Timesheet Comment"
+											},
+											"sink": {
+												"name": "timesheet_comment",
+												"type": "String",
+												"physicalType": "text"
+											}
+										},
+										{
+											"source": {
+												"name": "Schedule Comment"
+											},
+											"sink": {
+												"name": "schedule_comment",
+												"type": "String",
+												"physicalType": "text"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_schedules_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "AzurePostgreSqlDayforceSchedules",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete from Upload Folder On Success",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy to Success Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_schedules_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Copy to Success Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Execute Pipeline Upsert Schedules",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_schedules_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_employee_success_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Copy to Fail Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Schedules",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_schedules_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_employee_fail_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete from Upload Folder On Fail",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy to Fail Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_schedules_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Execute Pipeline Upsert Schedules",
+							"description": "Upsert Into Schedules",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Schedules",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Upsert Into Schedules",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-11-29T13:32:59Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

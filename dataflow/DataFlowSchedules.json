@@ -1,0 +1,106 @@
+{
+	"name": "DataFlowSchedules",
+	"properties": {
+		"description": "Staging to Schedules",
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlDayforceSchedules",
+						"type": "DatasetReference"
+					},
+					"name": "SourceStagingDayforceSchedules",
+					"description": "Import data from AzurePostgreSqlDayforceSchedules"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlTableSinkSchedules",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSchedules",
+					"description": "Export data to AzurePostgreSqlTableSinkSchedules"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AlterRowDayforceSchedules"
+				},
+				{
+					"name": "DerivedColumnFixNullValues"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          dayforce_id as string,",
+				"          location_name as string,",
+				"          employee as string,",
+				"          business_date as string,",
+				"          schedule_start as string,",
+				"          schedule_end as string,",
+				"          scheduled_hours as string,",
+				"          in_punch as string,",
+				"          out_punch as string,",
+				"          worked_hours as string,",
+				"          difference as string,",
+				"          timesheet_comment as string,",
+				"          schedule_comment as string,",
+				"          created_by as string,",
+				"          created_at as timestamp,",
+				"          updated_at as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> SourceStagingDayforceSchedules",
+				"DerivedColumnFixNullValues alterRow(upsertIf(!isNull('Location')&&!isNull('Employee')&&!isNull('Business Date'))) ~> AlterRowDayforceSchedules",
+				"SourceStagingDayforceSchedules derive(business_date = toDate(business_date,'MM/dd/yyyy')) ~> DerivedColumnFixNullValues",
+				"AlterRowDayforceSchedules sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          dayforce_id as integer,",
+				"          location_name as string,",
+				"          employee as string,",
+				"          business_date as date,",
+				"          schedule_start as string,",
+				"          schedule_end as string,",
+				"          scheduled_hours as decimal(12,3),",
+				"          in_punch as string,",
+				"          out_punch as string,",
+				"          worked_hours as decimal(12,3),",
+				"          difference as decimal(12,3),",
+				"          timesheet_comment as string,",
+				"          schedule_comment as string,",
+				"          created_by as string,",
+				"          created_at as timestamp,",
+				"          updated_at as timestamp",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:false,",
+				"     updateable:false,",
+				"     upsertable:true,",
+				"     keys:['location_name','employee','business_date'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          dayforce_id,",
+				"          location_name,",
+				"          employee,",
+				"          business_date,",
+				"          schedule_start,",
+				"          schedule_end,",
+				"          in_punch,",
+				"          out_punch,",
+				"          timesheet_comment,",
+				"          schedule_comment,",
+				"          created_by,",
+				"          created_at,",
+				"          updated_at",
+				"     )) ~> SinkSchedules"
+			]
+		}
+	}
+}

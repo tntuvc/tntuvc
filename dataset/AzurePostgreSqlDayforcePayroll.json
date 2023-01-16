@@ -1,0 +1,156 @@
+{
+	"name": "AzurePostgreSqlDayforcePayroll",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzurePostgreSqlDayforceEmployeeLS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzurePostgreSqlTable",
+		"schema": [
+			{
+				"name": "register_by_pay_run_pay_period_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_pay_period_start_date",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_pay_period_end_date",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_check_date",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "register_by_pay_run_employee_number",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "check_type",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "employee",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_type_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_class_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "employment_status_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "job_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "department_description",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "location",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_type",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_code",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "hours",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "rate",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "amount",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "ytd_hours",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "ytd_amount",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_by",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_at",
+				"type": "timestamp without time zone",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "updated_at",
+				"type": "timestamp without time zone",
+				"precision": 0,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "csv_import_raw",
+			"table": "staging_dayforce_payroll"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

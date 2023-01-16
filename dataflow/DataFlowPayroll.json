@@ -1,0 +1,133 @@
+{
+	"name": "DataFlowPayroll",
+	"properties": {
+		"description": "staging to payroll",
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlDayforcePayroll",
+						"type": "DatasetReference"
+					},
+					"name": "SourceStagingDayforcePayroll"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzurePostgreSqlTableSinkPayroll",
+						"type": "DatasetReference"
+					},
+					"name": "SinkPayroll"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AlterRowPayrollUpsert"
+				},
+				{
+					"name": "DerivedColumnFixNullConversions"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          register_by_pay_run_pay_period_name as string,",
+				"          register_by_pay_run_pay_period_start_date as string,",
+				"          register_by_pay_run_pay_period_end_date as string,",
+				"          register_by_pay_run_check_date as string,",
+				"          register_by_pay_run_employee_number as string,",
+				"          check_type as string,",
+				"          employee as string,",
+				"          pay_type_description as string,",
+				"          pay_class_description as string,",
+				"          employment_status_description as string,",
+				"          job_name as string,",
+				"          department_description as string,",
+				"          location as string,",
+				"          pay_type as string,",
+				"          pay_code as string,",
+				"          hours as string,",
+				"          rate as string,",
+				"          amount as string,",
+				"          ytd_hours as string,",
+				"          ytd_amount as string,",
+				"          created_by as string,",
+				"          created_at as timestamp,",
+				"          updated_at as timestamp",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'select a.* from csv_import_raw.staging_dayforce_payroll a where not exists (select b.id from csv_import_raw.payroll b where a.register_by_pay_run_pay_period_name||\\' \\'||a.register_by_pay_run_pay_period_start_date||\\' \\'||a.register_by_pay_run_pay_period_end_date=b.id) and a.register_by_pay_run_pay_period_name is not null',",
+				"     format: 'query') ~> SourceStagingDayforcePayroll",
+				"DerivedColumnFixNullConversions alterRow(insertIf(!isNull(register_by_pay_run_pay_period_name)&&!isNull(register_by_pay_run_pay_period_start_date)&&!isNull(register_by_pay_run_pay_period_end_date))) ~> AlterRowPayrollUpsert",
+				"SourceStagingDayforcePayroll derive(id = register_by_pay_run_pay_period_name+' '+register_by_pay_run_pay_period_start_date+ ' '+register_by_pay_run_pay_period_end_date,",
+				"          register_by_pay_run_check_date = toDate(register_by_pay_run_check_date,'MM/dd/yyyy'),",
+				"          register_by_pay_run_pay_period_start_date = toDate(register_by_pay_run_pay_period_start_date,'MM/dd/yyyy'),",
+				"          register_by_pay_run_pay_period_end_date = toDate(register_by_pay_run_pay_period_end_date,'MM/dd/yyyy'),",
+				"          hours = toDecimal(replace(hours,',',''),12,3,'#.###'),",
+				"          rate = toDecimal(replace(rate,',',''),12,3,'#.###'),",
+				"          amount = toDecimal(replace(amount,',',''),12,3,'#.###'),",
+				"          ytd_hours = toDecimal(replace(ytd_hours,',',''),12,3,'#.###'),",
+				"          ytd_amount = toDecimal(replace(ytd_amount,',',''),12,2,'#.##')) ~> DerivedColumnFixNullConversions",
+				"AlterRowPayrollUpsert sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          id as string,",
+				"          register_by_pay_run_pay_period_name as string,",
+				"          register_by_pay_run_pay_period_start_date as date,",
+				"          register_by_pay_run_pay_period_end_date as date,",
+				"          check_date as date,",
+				"          check_type as string,",
+				"          dayforce_id as string,",
+				"          pay_type_description as string,",
+				"          pay_class_description as string,",
+				"          employee_status as string,",
+				"          job_name as string,",
+				"          department as string,",
+				"          location_name as string,",
+				"          pay_type as string,",
+				"          pay_code as string,",
+				"          hours as decimal(0,0),",
+				"          rate as decimal(0,0),",
+				"          amount as decimal(0,0),",
+				"          ytd_hours as decimal(0,0),",
+				"          ytd_amount as decimal(0,0),",
+				"          created_by as string,",
+				"          created_at as timestamp",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          id,",
+				"          register_by_pay_run_pay_period_name,",
+				"          register_by_pay_run_pay_period_start_date,",
+				"          register_by_pay_run_pay_period_end_date,",
+				"          check_date = register_by_pay_run_check_date,",
+				"          check_type,",
+				"          dayforce_id = register_by_pay_run_employee_number,",
+				"          pay_type_description,",
+				"          pay_class_description,",
+				"          employee_status = employment_status_description,",
+				"          job_name,",
+				"          department = department_description,",
+				"          location_name = location,",
+				"          pay_type,",
+				"          pay_code,",
+				"          hours,",
+				"          rate,",
+				"          amount,",
+				"          ytd_hours,",
+				"          ytd_amount,",
+				"          created_by",
+				"     )) ~> SinkPayroll"
+			]
+		}
+	}
+}

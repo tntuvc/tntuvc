@@ -1,0 +1,483 @@
+{
+	"name": "Dayforce Employees",
+	"properties": {
+		"activities": [
+			{
+				"name": "Dayforce Emp Meta",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "dayforce_employee_meta_file",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "ForEach Upload Folder",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Dayforce Emp Meta",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Dayforce Emp Meta').output.childItems",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy Dayforce Emp",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "AzurePostgreSQLSink",
+									"writeBatchSize": 1000000,
+									"writeBatchTimeout": "00:30:00",
+									"preCopyScript": "truncate table csv_import_raw.staging_dayforce_employees",
+									"writeMethod": "CopyCommand"
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "Employee Identifier"
+											},
+											"sink": {
+												"name": "employee_identifier"
+											}
+										},
+										{
+											"source": {
+												"name": "First Name"
+											},
+											"sink": {
+												"name": "first_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Last Name"
+											},
+											"sink": {
+												"name": "last_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Status"
+											},
+											"sink": {
+												"name": "status"
+											}
+										},
+										{
+											"source": {
+												"name": "Termination Date"
+											},
+											"sink": {
+												"name": "termination_date"
+											}
+										},
+										{
+											"source": {
+												"name": "Status Reason Name"
+											},
+											"sink": {
+												"name": "status_reason_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Original Hire Date"
+											},
+											"sink": {
+												"name": "original_hire_date"
+											}
+										},
+										{
+											"source": {
+												"name": "Base Rate"
+											},
+											"sink": {
+												"name": "base_rate"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Group Name"
+											},
+											"sink": {
+												"name": "pay_group_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Type Name"
+											},
+											"sink": {
+												"name": "pay_type_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Pay Class Name"
+											},
+											"sink": {
+												"name": "pay_class_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Department Name"
+											},
+											"sink": {
+												"name": "department_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Job Name"
+											},
+											"sink": {
+												"name": "job_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Location Name"
+											},
+											"sink": {
+												"name": "location_name"
+											}
+										},
+										{
+											"source": {
+												"name": "Employee Birth Date"
+											},
+											"sink": {
+												"name": "employee_birth_date"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_employee_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "AzurePostgreSqlDayforceEmployee",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete from Upload Folder On Success",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy to Success Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_employee_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Copy to Success Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Execute Pipeline Upsert Employees",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_employee_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_employee_success_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Copy to Fail Folder",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Emp",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "dayforce_employee_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dayforce_employee_fail_folder",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Delete from Upload Folder On Fail",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy to Fail Folder",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "dayforce_employee_file",
+									"type": "DatasetReference",
+									"parameters": {
+										"FileName": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Execute Pipeline Upsert Employees",
+							"description": "Upsert Into Employees",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Copy Dayforce Emp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Upsert Into Employees",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-11-29T13:32:59Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

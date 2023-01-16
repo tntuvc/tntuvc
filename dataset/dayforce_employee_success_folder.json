@@ -1,0 +1,23 @@
+{
+	"name": "dayforce_employee_success_folder",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorageLS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": "success",
+				"container": "dayforce-employee"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

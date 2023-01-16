@@ -1,0 +1,94 @@
+{
+	"name": "dayforce_employee_file",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorageLS",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FileName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": {
+					"value": "@dataset().FileName",
+					"type": "Expression"
+				},
+				"folderPath": "upload",
+				"container": "dayforce-employee"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "Employee Identifier",
+				"type": "String"
+			},
+			{
+				"name": "First Name",
+				"type": "String"
+			},
+			{
+				"name": "Last Name",
+				"type": "String"
+			},
+			{
+				"name": "Status",
+				"type": "String"
+			},
+			{
+				"name": "Termination Date",
+				"type": "String"
+			},
+			{
+				"name": "Status Reason Name",
+				"type": "String"
+			},
+			{
+				"name": "Original Hire Date",
+				"type": "String"
+			},
+			{
+				"name": "Base Rate",
+				"type": "String"
+			},
+			{
+				"name": "Pay Group Name",
+				"type": "String"
+			},
+			{
+				"name": "Pay Type Name",
+				"type": "String"
+			},
+			{
+				"name": "Pay Class Name",
+				"type": "String"
+			},
+			{
+				"name": "Department Name",
+				"type": "String"
+			},
+			{
+				"name": "Job Name",
+				"type": "String"
+			},
+			{
+				"name": "Location Name",
+				"type": "String"
+			},
+			{
+				"name": "Employee Birth Date",
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

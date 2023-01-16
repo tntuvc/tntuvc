@@ -1,0 +1,126 @@
+{
+	"name": "AzurePostgreSqlTableSinkEmployees",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzurePostgreSqlDynamic",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzurePostgreSqlTable",
+		"schema": [
+			{
+				"name": "dayforce_id",
+				"type": "integer",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "first_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "last_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "status",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "termination_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "status_reason",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "hire_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "base_rate",
+				"type": "numeric",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_group",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_type",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "pay_class",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "department_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "job_name",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "home_organization_shortname",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "birth_date",
+				"type": "date",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_by",
+				"type": "text",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "created_at",
+				"type": "timestamp without time zone",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "updated_at",
+				"type": "timestamp without time zone",
+				"precision": 0,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "csv_import_raw",
+			"table": "employees"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

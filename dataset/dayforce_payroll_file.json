@@ -1,0 +1,118 @@
+{
+	"name": "dayforce_payroll_file",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorageLS",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FileName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": {
+					"value": "@dataset().FileName",
+					"type": "Expression"
+				},
+				"folderPath": "upload",
+				"container": "dayforce-payroll"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "Register by Pay Run Pay Period Name",
+				"type": "String"
+			},
+			{
+				"name": "Register by Pay Run Pay Period Start Date",
+				"type": "String"
+			},
+			{
+				"name": "Register by Pay Run Pay Period End Date",
+				"type": "String"
+			},
+			{
+				"name": "Register by Pay Run Check Date",
+				"type": "String"
+			},
+			{
+				"name": "Register by Pay Run Employee Number",
+				"type": "String"
+			},
+			{
+				"name": "Check Type",
+				"type": "String"
+			},
+			{
+				"name": "Employee",
+				"type": "String"
+			},
+			{
+				"name": "Employee Id",
+				"type": "String"
+			},
+			{
+				"name": "Pay Type Description",
+				"type": "String"
+			},
+			{
+				"name": "Pay Class Description",
+				"type": "String"
+			},
+			{
+				"name": "Employment Status Description",
+				"type": "String"
+			},
+			{
+				"name": "Job Name",
+				"type": "String"
+			},
+			{
+				"name": "Department Description",
+				"type": "String"
+			},
+			{
+				"name": "Location",
+				"type": "String"
+			},
+			{
+				"name": "Pay Type",
+				"type": "String"
+			},
+			{
+				"name": "Pay Code",
+				"type": "String"
+			},
+			{
+				"name": "Hours",
+				"type": "String"
+			},
+			{
+				"name": "Rate",
+				"type": "String"
+			},
+			{
+				"name": "Amount",
+				"type": "String"
+			},
+			{
+				"name": "YTD Hours",
+				"type": "String"
+			},
+			{
+				"name": "YTD Amount",
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
