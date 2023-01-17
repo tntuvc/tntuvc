@@ -1,0 +1,1461 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "datafactoryhxa3fflszyfxo"
+		},
+		"ArmtemplateStorageLinkedService_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ArmtemplateStorageLinkedService'"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
+		},
+		"AzureBlobStorageLS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorageLS'"
+		},
+		"AzurePostgreSqlDayforceEmployeeLS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzurePostgreSqlDayforceEmployeeLS'"
+		},
+		"AzurePostgreSqlDynamic_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzurePostgreSqlDynamic'"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/NotifyTeamsChannelPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Set JSON Schema",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "messageCard",
+							"value": {
+								"value": "{\n    \"@type\": \"MessageCard\",\n    \"@context\": \"http://schema.org/extensions\",\n    \"themeColor\": \"0076D7\",\n    \"summary\": \"Pipeline status alert message​​​​\",\n    \"sections\": [\n        {\n            \"activityTitle\": \"Pipeline execution alert​​​​\",\n            \"facts\": [\n                {\n                    \"name\": \"Subscription Id:\",\n                    \"value\": \"@{pipeline().parameters.subscription}\"\n                },\n                {\n                    \"name\": \"Resource Group:\",\n                    \"value\": \"@{pipeline().parameters.resourceGroup}\"\n                },\n                {\n                    \"name\": \"Data Factory Name:\",\n                    \"value\": \"@{pipeline().DataFactory}\"\n                },\n                {\n                    \"name\": \"Pipeline RunId:\",\n                    \"value\": \"@{pipeline().parameters.runId}\"\n                },\n                {\n                    \"name\": \"Pipeline Name:\",\n                    \"value\": \"@{pipeline().parameters.name}\"\n                },\n                {\n                    \"name\": \"Pipeline Status:\",\n                    \"value\": \"\"\n                },\n                {\n                    \"name\": \"Execution Start Time (UTC):\",\n                    \"value\": \"@{pipeline().parameters.triggerTime}\"\n                },\n                {\n                    \"name\": \"Execution Finish Time (UTC):\",\n                    \"value\": \"\"\n                },\n                {\n                    \"name\": \"Execution Duration (s):\",\n                    \"value\": \"\"\n                },\n                {\n                    \"name\": \"Message:\",\n                    \"value\": \"@{pipeline().parameters.message}\"\n                },\n                {\n                    \"name\": \"Uploaded File Name:\",\n                    \"value\": \"\"\n                },\n                {\n                    \"name\": \"Notification Time (UTC):\",\n                    \"value\": \"@{utcNow()}\"\n                }\n            ],\n            \"markdown\": true\n        }\n    ],\n    \"potentialAction\": [\n        {\n            \"@type\": \"OpenUri\",\n            \"name\": \"View pipeline run\",\n            \"targets\": [\n                {\n                    \"os\": \"default\",\n                    \"uri\": \"@{concat('https://adf.azure.com/monitoring/pipelineruns/',pipeline().parameters.runId,'?factory=/subscriptions/',pipeline().parameters.subscription,'/resourceGroups/',pipeline().parameters.resourceGroup,'/providers/Microsoft.DataFactory/factories/',pipeline().DataFactory)}\"\n                }\n            ]\n        }\n    ]\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Invoke Teams Webhook Url",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Set JSON Schema",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": {
+								"value": "@pipeline().parameters.teamWebhookUrl",
+								"type": "Expression"
+							},
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "@json(variables('messageCard'))",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"subscription": {
+						"type": "string",
+						"defaultValue": "development subscription id"
+					},
+					"resourceGroup": {
+						"type": "string",
+						"defaultValue": "csvinjest resource group"
+					},
+					"runId": {
+						"type": "string",
+						"defaultValue": "@activity('pipelineName').output['pipelineRunId']"
+					},
+					"name": {
+						"type": "string",
+						"defaultValue": "@activity('pipelineName').output['pipelineName']"
+					},
+					"triggerTime": {
+						"type": "string",
+						"defaultValue": "@activity('pipelineName').ExecutionStartTime"
+					},
+					"message": {
+						"type": "string"
+					},
+					"executionEndTime": {
+						"type": "string"
+					},
+					"runDuration": {
+						"type": "string"
+					},
+					"teamWebhookUrl": {
+						"type": "string",
+						"defaultValue": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+					},
+					"uploadedFileName": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"messageCard": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-28T21:45:58Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ArmtemplateStorageLinkedService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('ArmtemplateStorageLinkedService_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorage1_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorageLS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorageLS_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlDayforceEmployeeLS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzurePostgreSql",
+				"typeProperties": {
+					"connectionString": "[parameters('AzurePostgreSqlDayforceEmployeeLS_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlDynamic')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzurePostgreSql",
+				"typeProperties": {
+					"connectionString": "[parameters('AzurePostgreSqlDynamic_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlDayforceEmployee')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDayforceEmployeeLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "employee_identifier",
+						"type": "integer",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "first_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "last_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "status",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "termination_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "status_reason_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "original_hire_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "base_rate",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_group_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_class_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "department_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "job_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "location_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employee_birth_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "staging_dayforce_employees"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDayforceEmployeeLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlDayforcePayroll')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDayforceEmployeeLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "register_by_pay_run_pay_period_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_pay_period_start_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_pay_period_end_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_check_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_employee_number",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "check_type",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employee",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_class_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employment_status_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "job_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "department_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "location",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_code",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "hours",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "rate",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "amount",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ytd_hours",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ytd_amount",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "staging_dayforce_payroll"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDayforceEmployeeLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlDayforceSchedules')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDynamic",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "dayforce_id",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "location_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employee",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "business_date",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_start",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_end",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "scheduled_hours",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "in_punch",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "out_punch",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "worked_hours",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "difference",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "timesheet_comment",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_comment",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "staging_dayforce_schedules"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDynamic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlTableSinkEmployees')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDynamic",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "dayforce_id",
+						"type": "integer",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "first_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "last_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "status",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "termination_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "status_reason",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "hire_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "base_rate",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_group",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_class",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "department_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "job_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "home_organization_shortname",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "birth_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "employees"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDynamic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlTableSinkPayroll')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDynamic",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "id",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_pay_period_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_pay_period_start_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "register_by_pay_run_pay_period_end_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "check_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "check_type",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "dayforce_id",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_class_description",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employee_status",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "job_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "department",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "location_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_type",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "pay_code",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "hours",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "rate",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "amount",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ytd_hours",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ytd_amount",
+						"type": "numeric",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "payroll"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDynamic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzurePostgreSqlTableSinkSchedules')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzurePostgreSqlDynamic",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzurePostgreSqlTable",
+				"schema": [
+					{
+						"name": "dayforce_id",
+						"type": "integer",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "location_name",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "employee",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "business_date",
+						"type": "date",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_start",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_end",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "scheduled_hours",
+						"type": "numeric",
+						"precision": 12,
+						"scale": 3
+					},
+					{
+						"name": "in_punch",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "out_punch",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "worked_hours",
+						"type": "numeric",
+						"precision": 12,
+						"scale": 3
+					},
+					{
+						"name": "difference",
+						"type": "numeric",
+						"precision": 12,
+						"scale": 3
+					},
+					{
+						"name": "timesheet_comment",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "schedule_comment",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_by",
+						"type": "text",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "created_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "updated_at",
+						"type": "timestamp without time zone",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "csv_import_raw",
+					"table": "schedules"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzurePostgreSqlDynamic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_employee_fail_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "fail",
+						"container": "dayforce-employee"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_employee_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": "upload",
+						"container": "dayforce-employee"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Employee Identifier",
+						"type": "String"
+					},
+					{
+						"name": "First Name",
+						"type": "String"
+					},
+					{
+						"name": "Last Name",
+						"type": "String"
+					},
+					{
+						"name": "Status",
+						"type": "String"
+					},
+					{
+						"name": "Termination Date",
+						"type": "String"
+					},
+					{
+						"name": "Status Reason Name",
+						"type": "String"
+					},
+					{
+						"name": "Original Hire Date",
+						"type": "String"
+					},
+					{
+						"name": "Base Rate",
+						"type": "String"
+					},
+					{
+						"name": "Pay Group Name",
+						"type": "String"
+					},
+					{
+						"name": "Pay Type Name",
+						"type": "String"
+					},
+					{
+						"name": "Pay Class Name",
+						"type": "String"
+					},
+					{
+						"name": "Department Name",
+						"type": "String"
+					},
+					{
+						"name": "Job Name",
+						"type": "String"
+					},
+					{
+						"name": "Location Name",
+						"type": "String"
+					},
+					{
+						"name": "Employee Birth Date",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_employee_meta_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "upload",
+						"container": "dayforce-employee"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_employee_success_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "success",
+						"container": "dayforce-employee"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_payroll_fail_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "fail",
+						"container": "dayforce-payroll"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_payroll_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": "upload",
+						"container": "dayforce-payroll"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Register by Pay Run Pay Period Name",
+						"type": "String"
+					},
+					{
+						"name": "Register by Pay Run Pay Period Start Date",
+						"type": "String"
+					},
+					{
+						"name": "Register by Pay Run Pay Period End Date",
+						"type": "String"
+					},
+					{
+						"name": "Register by Pay Run Check Date",
+						"type": "String"
+					},
+					{
+						"name": "Register by Pay Run Employee Number",
+						"type": "String"
+					},
+					{
+						"name": "Check Type",
+						"type": "String"
+					},
+					{
+						"name": "Employee",
+						"type": "String"
+					},
+					{
+						"name": "Employee Id",
+						"type": "String"
+					},
+					{
+						"name": "Pay Type Description",
+						"type": "String"
+					},
+					{
+						"name": "Pay Class Description",
+						"type": "String"
+					},
+					{
+						"name": "Employment Status Description",
+						"type": "String"
+					},
+					{
+						"name": "Job Name",
+						"type": "String"
+					},
+					{
+						"name": "Department Description",
+						"type": "String"
+					},
+					{
+						"name": "Location",
+						"type": "String"
+					},
+					{
+						"name": "Pay Type",
+						"type": "String"
+					},
+					{
+						"name": "Pay Code",
+						"type": "String"
+					},
+					{
+						"name": "Hours",
+						"type": "String"
+					},
+					{
+						"name": "Rate",
+						"type": "String"
+					},
+					{
+						"name": "Amount",
+						"type": "String"
+					},
+					{
+						"name": "YTD Hours",
+						"type": "String"
+					},
+					{
+						"name": "YTD Amount",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_payroll_meta_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "upload",
+						"container": "dayforce-payroll"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_payroll_success_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "success",
+						"container": "dayforce-payroll"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorageLS')]"
+			]
+		}
+	]
+}

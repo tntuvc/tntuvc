@@ -1,0 +1,2559 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "datafactoryhxa3fflszyfxo"
+		},
+		"triggerEmployeesUpload_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		},
+		"triggerPayrollUpload_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		},
+		"triggerSchedulesUpload_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_schedules_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": "upload",
+						"container": "dayforce-schedules"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dayforce_schedules_meta_file')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorageLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "upload",
+						"container": "dayforce-schedules"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataFlowEmployees')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Staging to Employees",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlDayforceEmployee",
+								"type": "DatasetReference"
+							},
+							"name": "SourceStagingDayforceEmployees"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlTableSinkEmployees",
+								"type": "DatasetReference"
+							},
+							"name": "SinkEmployees"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AlterRowEmployeesUpsert"
+						},
+						{
+							"name": "DerivedColumnNullDataFix"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          employee_identifier as integer,",
+						"          first_name as string,",
+						"          last_name as string,",
+						"          status as string,",
+						"          termination_date as string,",
+						"          status_reason_name as string,",
+						"          original_hire_date as string,",
+						"          base_rate as string,",
+						"          pay_group_name as string,",
+						"          pay_type_name as string,",
+						"          pay_class_name as string,",
+						"          department_name as string,",
+						"          job_name as string,",
+						"          location_name as string,",
+						"          employee_birth_date as string,",
+						"          created_by as string,",
+						"          created_at as timestamp,",
+						"          updated_at as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select * from csv_import_raw.staging_dayforce_employees where concat(employee_identifier,status) not in (select concat(employee_identifier,status) from csv_import_raw.staging_dayforce_employees where employee_identifier in (select employee_identifier from csv_import_raw.staging_dayforce_employees group by employee_identifier having count(employee_identifier) > 1) and status=\\'Active\\')',",
+						"     format: 'query') ~> SourceStagingDayforceEmployees",
+						"DerivedColumnNullDataFix alterRow(upsertIf(!isNull(employee_identifier))) ~> AlterRowEmployeesUpsert",
+						"SourceStagingDayforceEmployees derive(employee_birth_date = toDate(employee_birth_date,'MM/dd/yyyy'),",
+						"          original_hire_date = toDate(original_hire_date,'MM/dd/yyyy'),",
+						"          termination_date = toDate(termination_date,'MM/dd/yyyy'),",
+						"          base_rate = toDecimal(base_rate,12,3,'#.###')) ~> DerivedColumnNullDataFix",
+						"AlterRowEmployeesUpsert sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          dayforce_id as integer,",
+						"          first_name as string,",
+						"          last_name as string,",
+						"          status as string,",
+						"          termination_date as date,",
+						"          status_reason as string,",
+						"          hire_date as date,",
+						"          base_rate as decimal(0,0),",
+						"          pay_group as string,",
+						"          pay_type as string,",
+						"          pay_class as string,",
+						"          department_name as string,",
+						"          job_name as string,",
+						"          home_organization_shortname as string,",
+						"          birth_date as date,",
+						"          created_by as string,",
+						"          created_at as timestamp,",
+						"          updated_at as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:false,",
+						"     upsertable:true,",
+						"     keys:['dayforce_id'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          dayforce_id = employee_identifier,",
+						"          first_name,",
+						"          last_name,",
+						"          status,",
+						"          termination_date,",
+						"          status_reason = status_reason_name,",
+						"          hire_date = original_hire_date,",
+						"          base_rate,",
+						"          pay_group = pay_group_name,",
+						"          pay_type = pay_type_name,",
+						"          pay_class = pay_class_name,",
+						"          department_name,",
+						"          job_name,",
+						"          home_organization_shortname = location_name,",
+						"          birth_date = employee_birth_date,",
+						"          created_by",
+						"     )) ~> SinkEmployees"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataFlowPayroll')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "staging to payroll",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlDayforcePayroll",
+								"type": "DatasetReference"
+							},
+							"name": "SourceStagingDayforcePayroll"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlTableSinkPayroll",
+								"type": "DatasetReference"
+							},
+							"name": "SinkPayroll"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AlterRowPayrollUpsert"
+						},
+						{
+							"name": "DerivedColumnFixNullConversions"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          register_by_pay_run_pay_period_name as string,",
+						"          register_by_pay_run_pay_period_start_date as string,",
+						"          register_by_pay_run_pay_period_end_date as string,",
+						"          register_by_pay_run_check_date as string,",
+						"          register_by_pay_run_employee_number as string,",
+						"          check_type as string,",
+						"          employee as string,",
+						"          pay_type_description as string,",
+						"          pay_class_description as string,",
+						"          employment_status_description as string,",
+						"          job_name as string,",
+						"          department_description as string,",
+						"          location as string,",
+						"          pay_type as string,",
+						"          pay_code as string,",
+						"          hours as string,",
+						"          rate as string,",
+						"          amount as string,",
+						"          ytd_hours as string,",
+						"          ytd_amount as string,",
+						"          created_by as string,",
+						"          created_at as timestamp,",
+						"          updated_at as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     query: 'select a.* from csv_import_raw.staging_dayforce_payroll a where not exists (select b.id from csv_import_raw.payroll b where a.register_by_pay_run_pay_period_name||\\' \\'||a.register_by_pay_run_pay_period_start_date||\\' \\'||a.register_by_pay_run_pay_period_end_date=b.id) and a.register_by_pay_run_pay_period_name is not null',",
+						"     format: 'query') ~> SourceStagingDayforcePayroll",
+						"DerivedColumnFixNullConversions alterRow(insertIf(!isNull(register_by_pay_run_pay_period_name)&&!isNull(register_by_pay_run_pay_period_start_date)&&!isNull(register_by_pay_run_pay_period_end_date))) ~> AlterRowPayrollUpsert",
+						"SourceStagingDayforcePayroll derive(id = register_by_pay_run_pay_period_name+' '+register_by_pay_run_pay_period_start_date+ ' '+register_by_pay_run_pay_period_end_date,",
+						"          register_by_pay_run_check_date = toDate(register_by_pay_run_check_date),",
+						"          register_by_pay_run_pay_period_start_date = toDate(register_by_pay_run_pay_period_start_date),",
+						"          register_by_pay_run_pay_period_end_date = toDate(register_by_pay_run_pay_period_end_date),",
+						"          hours = toDecimal(replace(hours,',',''),12,3,'#.###'),",
+						"          rate = toDecimal(replace(rate,',',''),12,3,'#.###'),",
+						"          amount = toDecimal(replace(amount,',',''),12,3,'#.###'),",
+						"          ytd_hours = toDecimal(replace(ytd_hours,',',''),12,3,'#.###'),",
+						"          ytd_amount = toDecimal(replace(ytd_amount,',',''),12,2,'#.##')) ~> DerivedColumnFixNullConversions",
+						"AlterRowPayrollUpsert sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          id as string,",
+						"          register_by_pay_run_pay_period_name as string,",
+						"          register_by_pay_run_pay_period_start_date as date,",
+						"          register_by_pay_run_pay_period_end_date as date,",
+						"          check_date as date,",
+						"          check_type as string,",
+						"          dayforce_id as string,",
+						"          pay_type_description as string,",
+						"          pay_class_description as string,",
+						"          employee_status as string,",
+						"          job_name as string,",
+						"          department as string,",
+						"          location_name as string,",
+						"          pay_type as string,",
+						"          pay_code as string,",
+						"          hours as decimal(0,0),",
+						"          rate as decimal(0,0),",
+						"          amount as decimal(0,0),",
+						"          ytd_hours as decimal(0,0),",
+						"          ytd_amount as decimal(0,0),",
+						"          created_by as string,",
+						"          created_at as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          id,",
+						"          register_by_pay_run_pay_period_name,",
+						"          register_by_pay_run_pay_period_start_date,",
+						"          register_by_pay_run_pay_period_end_date,",
+						"          check_date = register_by_pay_run_check_date,",
+						"          check_type,",
+						"          dayforce_id = register_by_pay_run_employee_number,",
+						"          pay_type_description,",
+						"          pay_class_description,",
+						"          employee_status = employment_status_description,",
+						"          job_name,",
+						"          department = department_description,",
+						"          location_name = location,",
+						"          pay_type,",
+						"          pay_code,",
+						"          hours,",
+						"          rate,",
+						"          amount,",
+						"          ytd_hours,",
+						"          ytd_amount,",
+						"          created_by",
+						"     )) ~> SinkPayroll"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DataFlowSchedules')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Staging to Schedules",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlDayforceSchedules",
+								"type": "DatasetReference"
+							},
+							"name": "SourceStagingDayforceSchedules",
+							"description": "Import data from AzurePostgreSqlDayforceSchedules"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzurePostgreSqlTableSinkSchedules",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSchedules",
+							"description": "Export data to AzurePostgreSqlTableSinkSchedules"
+						}
+					],
+					"transformations": [
+						{
+							"name": "AlterRowDayforceSchedules"
+						},
+						{
+							"name": "DerivedColumnFixNullValues"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          dayforce_id as string,",
+						"          location_name as string,",
+						"          employee as string,",
+						"          business_date as string,",
+						"          schedule_start as string,",
+						"          schedule_end as string,",
+						"          scheduled_hours as string,",
+						"          in_punch as string,",
+						"          out_punch as string,",
+						"          worked_hours as string,",
+						"          difference as string,",
+						"          timesheet_comment as string,",
+						"          schedule_comment as string,",
+						"          created_by as string,",
+						"          created_at as timestamp,",
+						"          updated_at as timestamp",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> SourceStagingDayforceSchedules",
+						"DerivedColumnFixNullValues alterRow(upsertIf(!isNull('Location')&&!isNull('Employee')&&!isNull('Business Date'))) ~> AlterRowDayforceSchedules",
+						"SourceStagingDayforceSchedules derive(business_date = toDate(business_date,'MM/dd/yyyy')) ~> DerivedColumnFixNullValues",
+						"AlterRowDayforceSchedules sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          dayforce_id as integer,",
+						"          location_name as string,",
+						"          employee as string,",
+						"          business_date as date,",
+						"          schedule_start as string,",
+						"          schedule_end as string,",
+						"          scheduled_hours as decimal(12,3),",
+						"          in_punch as string,",
+						"          out_punch as string,",
+						"          worked_hours as decimal(12,3),",
+						"          difference as decimal(12,3),",
+						"          timesheet_comment as string,",
+						"          schedule_comment as string,",
+						"          created_by as string,",
+						"          created_at as timestamp,",
+						"          updated_at as timestamp",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:false,",
+						"     upsertable:true,",
+						"     keys:['location_name','employee','business_date'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          dayforce_id,",
+						"          location_name,",
+						"          employee,",
+						"          business_date,",
+						"          schedule_start,",
+						"          schedule_end,",
+						"          in_punch,",
+						"          out_punch,",
+						"          timesheet_comment,",
+						"          schedule_comment,",
+						"          created_by,",
+						"          created_at,",
+						"          updated_at",
+						"     )) ~> SinkSchedules"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Insert Into Payroll')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Insert Payroll",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DataFlowPayroll",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceStagingDayforcePayroll": {},
+									"SinkPayroll": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-17T18:24:55Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DataFlowPayroll')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Upsert Into Employees')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Upsert Employees",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DataFlowEmployees",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceStagingDayforceEmployees": {},
+									"SinkEmployees": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-18T17:04:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DataFlowEmployees')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Upsert Into Schedules')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Upsert Schedules",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DataFlowSchedules",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceStagingDayforceSchedules": {},
+									"SinkSchedules": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-22T14:53:27Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DataFlowSchedules')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dayforce Employees')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Dayforce Emp Meta",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "dayforce_employee_meta_file",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEach Upload Folder",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Dayforce Emp Meta",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Dayforce Emp Meta').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy Dayforce Emp",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzurePostgreSQLSink",
+											"writeBatchSize": 1000000,
+											"writeBatchTimeout": "00:30:00",
+											"preCopyScript": "truncate table csv_import_raw.staging_dayforce_employees",
+											"writeMethod": "CopyCommand"
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "Employee Identifier"
+													},
+													"sink": {
+														"name": "employee_identifier"
+													}
+												},
+												{
+													"source": {
+														"name": "First Name"
+													},
+													"sink": {
+														"name": "first_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Last Name"
+													},
+													"sink": {
+														"name": "last_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Status"
+													},
+													"sink": {
+														"name": "status"
+													}
+												},
+												{
+													"source": {
+														"name": "Termination Date"
+													},
+													"sink": {
+														"name": "termination_date"
+													}
+												},
+												{
+													"source": {
+														"name": "Status Reason Name"
+													},
+													"sink": {
+														"name": "status_reason_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Original Hire Date"
+													},
+													"sink": {
+														"name": "original_hire_date"
+													}
+												},
+												{
+													"source": {
+														"name": "Base Rate"
+													},
+													"sink": {
+														"name": "base_rate"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Group Name"
+													},
+													"sink": {
+														"name": "pay_group_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Type Name"
+													},
+													"sink": {
+														"name": "pay_type_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Class Name"
+													},
+													"sink": {
+														"name": "pay_class_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Department Name"
+													},
+													"sink": {
+														"name": "department_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Job Name"
+													},
+													"sink": {
+														"name": "job_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Location Name"
+													},
+													"sink": {
+														"name": "location_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Employee Birth Date"
+													},
+													"sink": {
+														"name": "employee_birth_date"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_employee_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzurePostgreSqlDayforceEmployee",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete from Upload Folder On Success",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy to Success Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_employee_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Copy to Success Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Execute Pipeline Upsert Employees",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_employee_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_employee_success_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Copy to Fail Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Emp",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_employee_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_employee_fail_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete from Upload Folder On Fail",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy to Fail Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_employee_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Execute Pipeline Upsert Employees",
+									"description": "Upsert Into Employees",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Emp",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Upsert Into Employees",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-29T13:32:59Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Upsert Into Employees')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dayforce Payroll')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Dayforce Payroll Meta Upload",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "dayforce_payroll_meta_file",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEach Upload Folder",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Dayforce Payroll Meta Upload",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Dayforce Payroll Meta Upload').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy Dayforce Payroll PostgreSQL",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzurePostgreSQLSink",
+											"writeBatchSize": 1000000,
+											"writeBatchTimeout": "00:30:00",
+											"preCopyScript": "truncate table csv_import_raw.staging_dayforce_payroll",
+											"writeMethod": "CopyCommand"
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "Register by Pay Run Pay Period Name"
+													},
+													"sink": {
+														"name": "register_by_pay_run_pay_period_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Register by Pay Run Pay Period Start Date"
+													},
+													"sink": {
+														"name": "register_by_pay_run_pay_period_start_date"
+													}
+												},
+												{
+													"source": {
+														"name": "Register by Pay Run Pay Period End Date"
+													},
+													"sink": {
+														"name": "register_by_pay_run_pay_period_end_date"
+													}
+												},
+												{
+													"source": {
+														"name": "Register by Pay Run Check Date"
+													},
+													"sink": {
+														"name": "register_by_pay_run_check_date"
+													}
+												},
+												{
+													"source": {
+														"name": "Register by Pay Run Employee Number"
+													},
+													"sink": {
+														"name": "register_by_pay_run_employee_number"
+													}
+												},
+												{
+													"source": {
+														"name": "Check Type"
+													},
+													"sink": {
+														"name": "check_type"
+													}
+												},
+												{
+													"source": {
+														"name": "Employee"
+													},
+													"sink": {
+														"name": "employee"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Type Description"
+													},
+													"sink": {
+														"name": "pay_type_description"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Class Description"
+													},
+													"sink": {
+														"name": "pay_class_description"
+													}
+												},
+												{
+													"source": {
+														"name": "Employment Status Description"
+													},
+													"sink": {
+														"name": "employment_status_description"
+													}
+												},
+												{
+													"source": {
+														"name": "Job Name"
+													},
+													"sink": {
+														"name": "job_name"
+													}
+												},
+												{
+													"source": {
+														"name": "Department Description"
+													},
+													"sink": {
+														"name": "department_description"
+													}
+												},
+												{
+													"source": {
+														"name": "Location"
+													},
+													"sink": {
+														"name": "location"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Type"
+													},
+													"sink": {
+														"name": "pay_type"
+													}
+												},
+												{
+													"source": {
+														"name": "Pay Code"
+													},
+													"sink": {
+														"name": "pay_code"
+													}
+												},
+												{
+													"source": {
+														"name": "Hours"
+													},
+													"sink": {
+														"name": "hours"
+													}
+												},
+												{
+													"source": {
+														"name": "Rate"
+													},
+													"sink": {
+														"name": "rate"
+													}
+												},
+												{
+													"source": {
+														"name": "Amount"
+													},
+													"sink": {
+														"name": "amount"
+													}
+												},
+												{
+													"source": {
+														"name": "YTD Hours"
+													},
+													"sink": {
+														"name": "ytd_hours"
+													}
+												},
+												{
+													"source": {
+														"name": "YTD Amount"
+													},
+													"sink": {
+														"name": "ytd_amount"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_payroll_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzurePostgreSqlDayforcePayroll",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Copy To Success Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Execute Pipeline Insert Payroll",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_payroll_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_payroll_success_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete From Upload Folder On Success",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy To Success Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_payroll_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Copy To Fail Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Payroll PostgreSQL",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_payroll_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_payroll_fail_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete From Upload Folder On Fail",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy To Fail Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_payroll_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Execute Pipeline Insert Payroll",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Payroll PostgreSQL",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Insert Into Payroll",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-29T13:32:59Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Insert Into Payroll')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dayforce Schedules')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Dayforce Schedules Meta",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "dayforce_schedules_meta_file",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEach Upload Folder",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Dayforce Schedules Meta",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Dayforce Schedules Meta').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy Dayforce Schedules",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzurePostgreSQLSink",
+											"writeBatchSize": 1000000,
+											"writeBatchTimeout": "00:30:00",
+											"preCopyScript": "truncate table csv_import_raw.staging_dayforce_schedules",
+											"writeMethod": "CopyCommand"
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "Dayforce Id"
+													},
+													"sink": {
+														"name": "dayforce_id",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Location Name"
+													},
+													"sink": {
+														"name": "location_name",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Employee"
+													},
+													"sink": {
+														"name": "employee",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Business Date"
+													},
+													"sink": {
+														"name": "business_date",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Schedule Start"
+													},
+													"sink": {
+														"name": "schedule_start",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Schedule End"
+													},
+													"sink": {
+														"name": "schedule_end",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Scheduled Hours"
+													},
+													"sink": {
+														"name": "scheduled_hours",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "In Punch"
+													},
+													"sink": {
+														"name": "in_punch",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Out Punch"
+													},
+													"sink": {
+														"name": "out_punch",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Worked Hours"
+													},
+													"sink": {
+														"name": "worked_hours",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Difference"
+													},
+													"sink": {
+														"name": "difference",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Timesheet Comment"
+													},
+													"sink": {
+														"name": "timesheet_comment",
+														"type": "String",
+														"physicalType": "text"
+													}
+												},
+												{
+													"source": {
+														"name": "Schedule Comment"
+													},
+													"sink": {
+														"name": "schedule_comment",
+														"type": "String",
+														"physicalType": "text"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_schedules_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzurePostgreSqlDayforceSchedules",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete from Upload Folder On Success",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy to Success Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_schedules_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Copy to Success Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Execute Pipeline Upsert Schedules",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_schedules_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_employee_success_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Copy to Fail Folder",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Schedules",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "dayforce_schedules_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "dayforce_employee_fail_folder",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Delete from Upload Folder On Fail",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "Copy to Fail Folder",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "dayforce_schedules_file",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "Execute Pipeline Upsert Schedules",
+									"description": "Upsert Into Schedules",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Copy Dayforce Schedules",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Upsert Into Schedules",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-11-29T13:32:59Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/dayforce_schedules_meta_file')]",
+				"[concat(variables('factoryId'), '/datasets/dayforce_schedules_file')]",
+				"[concat(variables('factoryId'), '/pipelines/Upsert Into Schedules')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Master Dayforce Employees')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline Dayforce Employees",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Dayforce Employees",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "OnSuccess Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Employees",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": "Master Dayforce Employee Pipeline Run Successful",
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					},
+					{
+						"name": "OnFail Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Employees",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": {
+									"value": "@{activity('Execute Pipeline Dayforce Employees').error.message}",
+									"type": "Expression"
+								},
+								"executionEndTime": "execution end time",
+								"runDuration": "duration",
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-01T20:51:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Dayforce Employees')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Master Dayforce Payroll')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline Dayforce Payroll",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Dayforce Payroll",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "OnSuccess Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Payroll",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": "Master Dayforce Payroll Pipeline Run Successful",
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					},
+					{
+						"name": "OnFail Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Payroll",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": {
+									"value": "@{activity('Execute Pipeline Dayforce Payroll').error.message}",
+									"type": "Expression"
+								},
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-01T20:51:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Dayforce Payroll')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Master Dayforce Schedules')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline Dayforce Schedules",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Dayforce Schedules",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "OnSuccess Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Schedules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": "Master Dayforce Schedules Pipeline Run Successful",
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					},
+					{
+						"name": "OnFail Teams Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline Dayforce Schedules",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "NotifyTeamsChannelPipeline",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"subscription": "1def49d9-7441-4954-a3dd-749b614e94ea",
+								"resourceGroup": "csvinjest",
+								"runId": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								},
+								"name": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								},
+								"triggerTime": {
+									"value": "@pipeline().TriggerTime",
+									"type": "Expression"
+								},
+								"message": {
+									"value": "@{activity('Execute Pipeline Dayforce Schedules').error.message}",
+									"type": "Expression"
+								},
+								"executionEndTime": "execution end time",
+								"runDuration": "duration",
+								"teamWebhookUrl": "https://unitedvetcare.webhook.office.com/webhookb2/7a9d8c8b-f29c-45ff-b996-b3773a8455ae@ce76298f-68d5-4b4c-8ace-1f905bdd4538/IncomingWebhook/eba5c2fa065042f3b02d020292366ec6/7fea7b7d-1161-4e19-9543-d270b71873eb"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-01T20:51:26Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Dayforce Schedules')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/triggerEmployeesUpload')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Master Dayforce Employees",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/dayforce-employee/blobs/upload/",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('triggerEmployeesUpload_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Master Dayforce Employees')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/triggerPayrollUpload')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Master Dayforce Payroll",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/dayforce-payroll/blobs/upload/",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('triggerPayrollUpload_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Master Dayforce Payroll')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/triggerSchedulesUpload')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Master Dayforce Schedules",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/dayforce-schedules/blobs/upload/",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('triggerSchedulesUpload_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Master Dayforce Schedules')]"
+			]
+		}
+	]
+}

@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "datafactoryhxa3fflszyfxo"
+		},
+		"ArmtemplateStorageLinkedService_connectionString": {
+			"value": ""
+		},
+		"AzureBlobStorage1_connectionString": {
+			"value": ""
+		},
+		"AzureBlobStorageLS_connectionString": {
+			"value": ""
+		},
+		"AzurePostgreSqlDayforceEmployeeLS_connectionString": {
+			"value": ""
+		},
+		"AzurePostgreSqlDynamic_connectionString": {
+			"value": ""
+		},
+		"triggerEmployeesUpload_properties_typeProperties_scope": {
+			"value": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		},
+		"triggerPayrollUpload_properties_typeProperties_scope": {
+			"value": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		},
+		"triggerSchedulesUpload_properties_typeProperties_scope": {
+			"value": "/subscriptions/1def49d9-7441-4954-a3dd-749b614e94ea/resourceGroups/csvinjest/providers/Microsoft.Storage/storageAccounts/csvinjest"
+		}
+	}
+}
